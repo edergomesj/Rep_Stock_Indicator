@@ -9,21 +9,63 @@ import yfinance as yf
 from datetime import datetime, timedelta
 import pytz
 import ta
+import logging
+from dataclasses import dataclass
+from typing import List, Tuple, Optional
+
+#Configure Logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+#Constants
+TIME_PERIODS = ['1d','1wk','1mo','1y','max']
+INTERVAL_MAPPING = {
+    '1d': '1m',
+    '1wk': '30m',
+    '1mo': '1d',
+    '1y': '1wk',
+    'max': '1wk'
+}
+DEFAULT_SYMBOLS = ['AAPL','GOOGL','AMZN','MSFT']
+
+@dataclass
+class ChartConfig:
+    ticker: str
+    time_period: str
+    chart_type: str
+    indicators: List[str]
+
+    def validate(self) -> bool:
+        return (
+            isinstance(self.ticker, str) and
+            self.time_period in TIME_PERIODS and
+            self.chart_type in ['Candlestick', 'Line']
+        )
+
 
 # Part1: Define functions for pulling, processing, and creating technical indicators
 
 #Fetch stock data based on the ticker, period, and interval
-def fetch_stock_data(ticker, period, interval):
-    end_date = datetime.now()
-    if period == '1wk':
-        start_date = end_date - timedelta(days=7)
-        data = yf.download(ticker, start=start_date, end=end_date, interval=interval)
-    else:
-        data = yf.download(ticker, period=period, interval=interval)
-    return data
+@st.cache_data(ttl=300) #cache for 5 minutes
+def fetch_stock_data(ticker:str, period: str, interval: str):
+    try:
+        logger.info(f"Fetching data for ticker: {ticker} with period: {period}")
+        end_date = datetime.now()
+        if period == '1wk':
+            start_date = end_date - timedelta(days=7)
+            data = yf.download(ticker, start=start_date, end=end_date, interval=interval)
+        else:
+            data = yf.download(ticker, period=period, interval=interval)
+        if data.empty:
+            raise ValueError(f"No data available for ticker '{ticker}")
+        return data
+    except Exception as e:
+        logger.error(f"Error fetching data: {str(e)}"
+        return pd.Dataframe()
+    
 
 #Process data to ensure it is timezone-aware and has the correct format
-def process_data(data):
+def process_data(data: pd.DataFrame) -> pd.DataFrame:
     if data.index.tzinfo is None:
         data.index = data.index.tz_localize('UTC')
     data.index = data.index.tz_convert('US/Eastern')
