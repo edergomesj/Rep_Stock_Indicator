@@ -66,33 +66,63 @@ def fetch_stock_data(ticker:str, period: str, interval: str):
 
 #Process data to ensure it is timezone-aware and has the correct format
 def process_data(data: pd.DataFrame) -> pd.DataFrame:
-    if data.index.tzinfo is None:
-        data.index = data.index.tz_localize('UTC')
-    data.index = data.index.tz_convert('US/Eastern')
-    data.reset_index(inplace=True)
-    data.rename(columns={'date':'Datetime'}, inplace=True)
-    return data
+    try:
+        if data.empty:
+            return data
+
+        if data.index.tzinfo is None:
+            data.index = data.index.tz_localize('UTC')
+        data.index = data.index.tz_convert('US/Eastern')
+        data.reset_index(inplace=True)
+        data.rename(columns={'date':'Datetime'}, inplace=True)
+        data.fillna(method='ffill', inplace=True)
+        return data
+
+    except Exception as e:
+        logger.error(f"Error processing data: {str(e)}")
+        st.error("Error processing data")
+        return pd.DataFrame()
 
 #Calculate basic metrics from the stock data
-def calculate_metrics(data):
-    if data.empty:
-        st.error("No data available for selected ticker and time period.")
-    else:
+def calculate_metrics(data: pd.DataFrame) -> Tuple[float, float, float, float, float, float, float]:
+    try:
+        if data.empty:
+            raise ValueError("No data available for calculations.")
+
         last_close = data['Close'].iloc[-1]
         prev_close = data['Close'].iloc[0]
         change = last_close - prev_close
         pct_change = (change / prev_close) *100
-        high = data['High'].max()
-        low = data['Low'].min()
-        volume = data['Volume'].sum()
+        high = float(data['High'].max())
+        low = float(data['Low'].min())
+        volume = float(data['Volume'].sum())
+
         return last_close, prev_close, change, pct_change, high, low, volume
 
+    except Exception as e:
+        logger.error(f"Error calculating metrics: {str(e)}")
+        st.error("Error calculating metrics")
+        return 0.0,0.0,0.0,0.0,0.0,0.0,0.0
+
 # Add simple moving average (SMA) and exponencial moving average (EMA) indicators
-def add_technical_indicators(data):
-    data['Close'].fillna(0, inplace=True)
+def add_technical_indicators(data: pd.Dataframe) -> pd.DataFrame:
+    try:
+        if data.empty:
+            return data
+
+    #Fill any missing values before calculating indicators
+    data['Close'] = data['Close'].fillna(method='ffill')
     data['SMA_20'] = ta.trend.sma_indicator(data['Close'], window=20)
     data['EMA_20'] = ta.trend.ema_indicator(data['Close'], window=20)
+
+    #Fill any Nan values created by the indicators
+    data.fillna(method='bfill', inplace=True)
     return data
+    except Exception as e:
+        logger.error(f"Error adding technical indicators: {str(e)}")
+        st.error("Error calculating technical indicators")
+        return data        
+
 
 # Part 2A: Creating the dashboard App layout
 
