@@ -258,4 +258,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+    app.run_server(debug=True, port=8050)
+
 
