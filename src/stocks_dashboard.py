@@ -181,3 +181,81 @@ def create_stock_chart(data: pd.DataFrame, config: ChartConfig) -> go.Figure:
 # Part 2: Main Application
 
 def main():
+#Set up Streamlit page
+    st.set_page_config(layout='wide', page_title='Real Time Stock Dashboard')
+    st.title("Real Time Stock Dashboard")
+
+    #Sidebar
+    st.sidebar.header("Chart Parameters")
+    config = ChartConfig(
+        ticker=st.sidebar.text_input('Ticker', 'ADBE'),
+        time_period=st.sidebar.selectbox('Time Period', TIME_PERIODS),
+        chart_type=st.sidebar.selectbox('Chart Type', ['Candlestick', 'Line']),
+        indicators=st.sidebar.multiselect('Technical Indicators', ['SMA_20', 'EMA_20'])
+    )
+
+    #Main content
+    if st.sidebar.button('Update'):
+        with st.spinner('Fetching data...'):
+            #Create placeholder for chart
+            chart_placeholder = st.empty()
+            metrics_placeholder = st.columns(3)
+
+            #Fetch and process data
+            data = fetch_stock_data(config.ticker, config.time_period, INTERVAL_MAPPING[config.time_period])
+
+            if not data.empty:
+                data = process_data(data)
+                data = add_technical_indicators(data)
+
+                #Calculate and display metrics
+                last_close, prev_close, change, pct_change, high, low, volume = calculate_metrics(data)
+
+                st.metric(
+                    label = f"{config.ticker} last price",
+                    value = f"{last_close:.2f} USD",
+                    delta=f"{change:.2f} USD ({pct_change:.2f}%)",
+                )
+
+                metrics_placeholder[0].metric("High", f"{high:.2f} USD")
+                metrics_placeholder[1].metric("Low", f"{low:.2f} USD")
+                metrics_placeholder[2].metric("Volume", f"{volume:.0f}")
+                
+                #Create and display chart
+                fig = create_stock_chart(data, config)
+                chart_placeholder.plotly_chart(fig, use_container_width=True)
+                
+                #Display data tables
+                col1, col2 = st.columns(2)
+                with col1:
+                    st.subheader('Historical Data')
+                    st.dataframe(data[['Datetime', 'Open', 'High', 'Low', 'Close', 'Volume']])
+
+                with col2:
+                    st.subheader('Technical Indicators')
+                    st.dataframe(data[['Datetime', 'SMA_20', 'EMA_20', 'Low', 'Close', 'Volume']])
+
+    # Sidebar Real-time prices
+    st.sidebar.header('Real-Time Stock Prices')
+    for symbol in DEFAULT_SYMBOLS:
+        with st.sidebar.container():
+            try:
+                real_time_data = fetch_stock_data(symbol, '1d','1m')
+                if not real_time_data.empty:
+                    real_time_data = process_data(real_time_data)
+                    real_time_data = float(real_time_data["Close"].iloc[-1])
+                    change = last_price - float(real_time_data["Open"].iloc[0])
+                    pct_change = (change / float(real_time_data["Open"].iloc[0]) * 100)
+                    st.metric(f"{symbol}", f"{last_price:.2f}",{pct_change:.2f}%)")
+
+            except Exception as e:
+                logger.error(f"Error displaying real-time price for {symbol}: {str(e)}")
+                st.error("Unable to fetch data for {symbol}")
+
+    #About section
+    st.sidebar.subheader("About")
+    st.sidebar.info('This dashboard provides real-time stock data and technical indicators for the selected ticker and time periods.')
+
+if __name__ == '__main__':
+    main()
+
