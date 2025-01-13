@@ -57,11 +57,11 @@ def fetch_stock_data(ticker:str, period: str, interval: str):
         else:
             data = yf.download(ticker, period=period, interval=interval)
         if data.empty:
-            raise ValueError(f"No data available for ticker '{ticker}")
+            raise ValueError(f"No data available for ticker {ticker}")
         return data
     except Exception as e:
-        logger.error(f"Error fetching data: {str(e)}"
-        return pd.Dataframe()
+        logger.error(f"Error fetching data: {str(e)})"
+        return pd.DataFrame()
     
 
 #Process data to ensure it is timezone-aware and has the correct format
@@ -74,7 +74,7 @@ def process_data(data: pd.DataFrame) -> pd.DataFrame:
             data.index = data.index.tz_localize('UTC')
         data.index = data.index.tz_convert('US/Eastern')
         data.reset_index(inplace=True)
-        data.rename(columns={'date':'Datetime'}, inplace=True)
+        data.rename(columns={'Date':'Datetime'}, inplace=True)
         data.fillna(method='ffill', inplace=True)
         return data
 
@@ -105,7 +105,7 @@ def calculate_metrics(data: pd.DataFrame) -> Tuple[float, float, float, float, f
         return 0.0,0.0,0.0,0.0,0.0,0.0,0.0
 
 # Add simple moving average (SMA) and exponencial moving average (EMA) indicators
-def add_technical_indicators(data: pd.Dataframe) -> pd.DataFrame:
+def add_technical_indicators(data: pd.DataFrame) -> pd.DataFrame:
     try:
         if data.empty:
             return data
@@ -138,7 +138,7 @@ def create_stock_chart(data: pd.DataFrame, config: ChartConfig) -> go.Figure:
                 name= 'OHLC'
             ))
         else:
-            fig.add_trace(go.scatter(
+            fig.add_trace(go.Scatter(
                 x=data['Datetime'],
                 y=data['Close'],
                 mode='lines',
@@ -147,14 +147,14 @@ def create_stock_chart(data: pd.DataFrame, config: ChartConfig) -> go.Figure:
 
         #add technical indicators
         if 'SMA_20' in config.indicators:
-            fig.add_trace(go.scatter(x=data['Datetime'],
+            fig.add_trace(go.Scatter(x=data['Datetime'],
             y=data['SMA_20'], 
             name='SMA 20', 
             line=dict(dash='dash')
         )) 
 
         if 'EMA_20' in config.indicators:
-            fig.add_trace(go.scatter(x=data['Datetime'],
+            fig.add_trace(go.Scatter(x=data['Datetime'],
             y=data['EMA_20'], 
             name='EMA 20', 
             line=dict(dash='dot')
@@ -233,7 +233,7 @@ def main():
 
                 with col2:
                     st.subheader('Technical Indicators')
-                    st.dataframe(data[['Datetime', 'SMA_20', 'EMA_20', 'Low', 'Close', 'Volume']])
+                    st.dataframe(data[['Datetime', 'SMA_20', 'EMA_20', 'Close']])
 
     # Sidebar Real-time prices
     st.sidebar.header('Real-Time Stock Prices')
@@ -243,10 +243,10 @@ def main():
                 real_time_data = fetch_stock_data(symbol, '1d','1m')
                 if not real_time_data.empty:
                     real_time_data = process_data(real_time_data)
-                    real_time_data = float(real_time_data["Close"].iloc[-1])
+                    last_price = float(real_time_data["Close"].iloc[-1])
                     change = last_price - float(real_time_data["Open"].iloc[0])
                     pct_change = (change / float(real_time_data["Open"].iloc[0]) * 100)
-                    st.metric(f"{symbol}", f"{last_price:.2f}",{pct_change:.2f}%)")
+                    st.metric(f"{symbol}", f"{last_price:.2f}",{pct_change:.2f}%")
 
             except Exception as e:
                 logger.error(f"Error displaying real-time price for {symbol}: {str(e)}")
@@ -258,6 +258,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-    app.run_server(debug=True, port=8050)
-
-
+    
