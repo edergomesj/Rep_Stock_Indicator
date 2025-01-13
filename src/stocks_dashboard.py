@@ -246,7 +246,7 @@ def main():
                     last_price = float(real_time_data["Close"].iloc[-1])
                     change = last_price - float(real_time_data["Open"].iloc[0])
                     pct_change = (change / float(real_time_data["Open"].iloc[0]) * 100)
-                    st.metric(f"{symbol}", f"{last_price:.2f}",{pct_change:.2f}%")
+                    st.metric(f"{symbol}", f"{last_price:.2f}", f"{pct_change:.2f}%")
 
             except Exception as e:
                 logger.error(f"Error displaying real-time price for {symbol}: {str(e)}")
