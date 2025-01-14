@@ -60,7 +60,7 @@ def fetch_stock_data(ticker:str, period: str, interval: str):
             raise ValueError(f"No data available for ticker {ticker}")
         return data
     except Exception as e:
-        logger.error(f"Error fetching data: {str(e)})"
+        logger.error(f"Error fetching data: {str(e)}")
         return pd.DataFrame()
     
 
@@ -110,14 +110,15 @@ def add_technical_indicators(data: pd.DataFrame) -> pd.DataFrame:
         if data.empty:
             return data
 
-    #Fill any missing values before calculating indicators
-    data['Close'] = data['Close'].fillna(method='ffill')
-    data['SMA_20'] = ta.trend.sma_indicator(data['Close'], window=20)
-    data['EMA_20'] = ta.trend.ema_indicator(data['Close'], window=20)
+        #Fill any missing values before calculating indicators
+        data['Close'] = data['Close'].fillna(method='ffill')
+        data['SMA_20'] = ta.trend.sma_indicator(data['Close'], window=20)
+        data['EMA_20'] = ta.trend.ema_indicator(data['Close'], window=20)
 
-    #Fill any Nan values created by the indicators
-    data.fillna(method='bfill', inplace=True)
-    return data
+        #Fill any Nan values created by the indicators
+        data.fillna(method='bfill', inplace=True)
+        return data
+
     except Exception as e:
         logger.error(f"Error adding technical indicators: {str(e)}")
         st.error("Error calculating technical indicators")
